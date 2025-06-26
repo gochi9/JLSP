@@ -18,7 +18,7 @@ public class Parser implements ParseCompute{
 
     /**
      * 127 all ASCII chars, uses like 1-2kb ram<br/>
-     * If you want to support all character, then modify this to 0x10000 which is about 65k+ which is going to use like 1mb of ram
+     * If you want to support all character, then modify this to 0x10000 which is about 65k+ which is going to use like 1mb of ram.
      */
     private int limit;
 
