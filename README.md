@@ -31,8 +31,18 @@ System.out.println(formula.inOperationOrderResult());
 implementation("io.github.gochi9:JLSP:1.0")
 ```
 
-
-<br/>
+## Custom variables
+Any character that is not a number/comma/delimiter is considered a custom variable that you'll need to assign a value to
+```java
+Formula f = ParserStatic.parse("-4+ab+1.7*(k+a)");
+//Sets the values for values in the order they first appear, in this example a, b and then k
+f.setVariables(4, 8, 3);
+//or for specific use
+f.setVariable('b', 8);
+f.setVariable('a', 4);
+f.setVariable('k', 3);
+System.out.println(f.inOperationOrderResult());
+```
 
 ## Default operators / functions / commas / delimiters
 <details>
