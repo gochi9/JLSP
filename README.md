@@ -1,4 +1,4 @@
-Javadocs link: {TBA}<br/>
+Javadocs link: https://javadoc.io/doc/io.github.gochi9/JLSP/latest/index.html<br/>
 Only a few examples are introduced below, it would be better to check the javadocs and/or the code 
 
 Lightweight (~40kb), linear-time java parser that supports custom operators, functions, replaceable variables, etc
