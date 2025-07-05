@@ -534,6 +534,13 @@ public class Parser implements ParseCompute{
     }
 
     /**
+     * Returns a copy of the current map of functions
+     */
+    public Map<String, FunctionCompute> functionsClone(){
+        return new HashMap<>(functions);
+    }
+
+    /**
      * see {@link Parser#parseFormula(String, boolean)}
      */
     public Formula parse(String formula){
@@ -561,6 +568,9 @@ public class Parser implements ParseCompute{
             Formula result = parseLogic.parse(formula);
             return acceptNull || result != null ? result : new Formula(new FormulaEntity[0], 0, new FormulaEntity[0], 0, new FormulaEntity[0], 0, new LinkedHashMap<>(), this);
         }
+
+        if(isOperator(formula.charAt(formula.length() - 1)))
+            formula = formula + "0";
 
         ParsingState state = getState();
         ParsingState currentState = state;
@@ -602,6 +612,9 @@ public class Parser implements ParseCompute{
                     currentState.clearTemp();
                     operator = currentState.preFuncOp;
                 }
+
+                if(currentState.currentValue != null)
+                    addStaticVariable(currentState, currentState.inOrder, currentState.inOperationOrder, true);
 
                 boolean isFunc = currentState.func != null;
                 stateStack.push(currentState);
@@ -646,6 +659,7 @@ public class Parser implements ParseCompute{
         ParsingState st = currentState;
         currentState = stateStack.pop();
         char op = st.parenthesesOperation == '-' ? currentState.isNegative ? '-' : defaultOperator : st.parenthesesOperation;
+
         FormulaEntity<?> toAdd;
 
         if(currentState.func == null)
