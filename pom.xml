@@ -6,7 +6,7 @@
 
     <groupId>io.github.gochi9</groupId>
     <artifactId>JLSP</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <name>JLSP</name>
     <description>A simple Java parser library</description>
     <url>https://github.com/gochi9/JLSP</url>

@@ -66,10 +66,10 @@ public class TempMap {
         this.size = 0;
     }
 
-    public void clearLists(boolean clear) {
+    public void clearLists(boolean clearTemp) {
         for (int i = 0; i < tempIndex; i++) {
             TempList list = data[tempIndexes[i]];
-            if (clear) list.clearTemp();
+            if (clearTemp) list.clearTemp();
             else list.removeTemp();
         }
         tempIndex = 0;

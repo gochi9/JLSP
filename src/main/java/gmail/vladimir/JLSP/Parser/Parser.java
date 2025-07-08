@@ -690,12 +690,13 @@ public class Parser implements ParseCompute{
 
         TempList inOrder = currentState.inOrder;
         TempList inOperationOrderList = currentState.inOperationOrder.complete();
+        int inOrderSize = inOrder.size();
         int inOperationOrderSize = inOperationOrderList.size();
 
         if(c != null)
-            return new Formula(c, inOrder.getArray(), inOrder.size(), inOperationOrderList.getArray(), inOperationOrderSize, lowest.getArray(), lowest.size(), this);
+            return new Formula(c, inOrder.getArray(), inOrderSize, inOperationOrderList.getArray(), inOperationOrderSize, lowest.getArray(), lowest.size(), this);
         else
-            return new Formula(inOrder.getArray(), inOrder.size(), inOperationOrderList.getArray(), inOperationOrderSize, lowest.getArray(), lowest.size(), this);
+            return new Formula(inOrder.getArray(), inOrderSize, inOperationOrderList.getArray(), inOperationOrderSize, lowest.getArray(), lowest.size(), this);
     }
 
     /**
@@ -790,6 +791,7 @@ public class Parser implements ParseCompute{
         StaticVariable staticVariable = new StaticVariable(formatStatic(state.isNegative, state.currentValue), operation == '-' ? defaultOperator : operation);
 
         preResolve(state, staticVariable, operation, toAdd, inOperationOrder, reset);
+
         return staticVariable;
     }
 
@@ -1149,7 +1151,12 @@ public class Parser implements ParseCompute{
      * @throws IndexOutOfBoundsException If the index does not fit inside the current {@link Parser#limit}
      */
     public final double compute(char c, double left, double right, boolean... extra){
-        return opImpl[c].compute(left, right, extra);
+        try{
+            return opImpl[c].compute(left, right, extra);
+        }
+        catch (NullPointerException ex){
+            throw new NullPointerException("Character " + c + " is not a valid operator but an operation tried to use it. This only happens if this character is set under a setting like defaultOperator or betweenVariables or something similar but the character was removed from the valid operator list. Please update your settings accordingly.");
+        }
     }
 
     private final static FunctionCompute defaultFuncCompute = (caller, inOperationOrder, a) -> 0;

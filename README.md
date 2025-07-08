@@ -1,5 +1,6 @@
 Javadocs link: https://javadoc.io/doc/io.github.gochi9/JLSP/latest/index.html<br/>
 Only a few examples are introduced below, it would be better to check the javadocs and/or the code 
+Supports java 8+
 
 Lightweight (~40kb), linear-time java parser that supports custom operators, functions, replaceable variables, etc
 
@@ -191,6 +192,7 @@ Keen observation. Too bad though. Just use π instead
         addFunction("bitxor", (caller, inOperationOrder, a) -> (double)((long)processEntity(caller, a[0], inOperationOrder) ^ (long)processEntity(caller, a[1], inOperationOrder)));
         addFunction("bitnot", (caller, inOperationOrder, a) -> (double)(~(long)processEntity(caller, a[0], inOperationOrder)));
         addFunction("shl", (caller, inOperationOrder, a) -> (double) ((long) processEntity(caller, a[0], inOperationOrder) << (int) (long) processEntity(caller, a[1], inOperationOrder)));
+        addFunction("shl", (caller, inOperationOrder, a) -> (double) ((long) processEntity(caller, a[0], inOperationOrder) << (int) (long) processEntity(caller, a[1], inOperationOrder)));
         addFunction("shr", (caller, inOperationOrder, a) -> (double) ((long) processEntity(caller, a[0], inOperationOrder) >> (int) (long) processEntity(caller, a[1], inOperationOrder)));
         addFunction("sec", (caller, inOperationOrder, a) -> 1.0 / Math.cos(processEntity(caller, a[0], inOperationOrder)));
         addFunction("csc", (caller, inOperationOrder, a) -> 1.0 / Math.sin(processEntity(caller, a[0], inOperationOrder)));
@@ -264,7 +266,7 @@ Keen observation. Too bad though. Just use π instead
 Use:
 
 ```java
-addOperator(char symbol, DoubleBinaryOperator compute, int priority);
+addOperator(char symbol, OperatorCompute compute, int priority);
 ```
 Example:
 ```java

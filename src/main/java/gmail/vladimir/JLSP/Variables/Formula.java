@@ -1,6 +1,7 @@
 package gmail.vladimir.JLSP.Variables;
 
 import gmail.vladimir.JLSP.Helpers.TempList;
+import gmail.vladimir.JLSP.Interfaces.NeedsRoot;
 import gmail.vladimir.JLSP.Pairs.ResultPair;
 import gmail.vladimir.JLSP.Parser.Parser;
 
@@ -11,7 +12,7 @@ import java.util.concurrent.CompletableFuture;
  * The main holder of all variables(formula entities).<br/>
  * Can be a variable itself when used in nested formulas
  */
-public class Formula extends FormulaEntity<Double> {
+public class Formula extends FormulaEntity<Double> implements NeedsRoot {
 
     private final FormulaEntity<?>[] inOrder, inOperationOrder, lowestPriority;
     private final int inOrderSize;
@@ -42,9 +43,9 @@ public class Formula extends FormulaEntity<Double> {
     public Formula(FormulaEntity<?>[] inOrder, int inOrderSize, FormulaEntity<?>[] inOperationOrder, int inOperationOrderSize, FormulaEntity<?>[] lowestPriority, int lowestPrioritySize, LinkedHashMap<Character, Double> replacedVariables, Parser parser) {
         super(0D, parser.getDefaultOperator());
         this.parser = parser;
-        this.inOrder = inOrder;
-        this.inOperationOrder = inOperationOrder;
-        this.lowestPriority = lowestPriority;
+        this.inOrder = Arrays.copyOf(inOrder, inOrderSize);
+        this.inOperationOrder = Arrays.copyOf(inOperationOrder, inOperationOrderSize);
+        this.lowestPriority = Arrays.copyOf(lowestPriority, lowestPrioritySize);
         this.inOrderSize = inOrderSize;
         this.inOperationOrderSize = inOperationOrderSize;
         this.lowestPrioritySize = lowestPrioritySize;
@@ -54,10 +55,8 @@ public class Formula extends FormulaEntity<Double> {
             FormulaEntity<?> fe = inOrder[i];
             if (fe instanceof ReplaceableVariable)
                 vars.add(((ReplaceableVariable) fe).getValue());
-            if (fe instanceof Formula)
-                ((Formula) fe).setRoot(this);
-            if (fe instanceof Function)
-                ((Function) fe).setRoot(this);
+            else if (fe instanceof NeedsRoot)
+                ((NeedsRoot) fe).setRoot(this, vars);
         }
 
         int nVars = vars.size();
@@ -100,9 +99,9 @@ public class Formula extends FormulaEntity<Double> {
     public Formula(char last, FormulaEntity<?>[] inOrder, int inOrderSize, FormulaEntity<?>[] inOperationOrder, int inOperationOrderSize, FormulaEntity<?>[] lowestPriority, int lowestPrioritySize, Parser parser){
         super(0D, last);
         this.parser = parser;
-        this.inOrder = inOrder;
-        this.inOperationOrder = inOperationOrder;
-        this.lowestPriority = lowestPriority;
+        this.inOrder = Arrays.copyOf(inOrder, inOrderSize);
+        this.inOperationOrder = Arrays.copyOf(inOperationOrder, inOperationOrderSize);
+        this.lowestPriority = Arrays.copyOf(lowestPriority, lowestPrioritySize);
         this.inOrderSize = inOrderSize;
         this.inOperationOrderSize = inOperationOrderSize;
         this.lowestPrioritySize = lowestPrioritySize;
@@ -116,7 +115,7 @@ public class Formula extends FormulaEntity<Double> {
     /**
      * Recursively sets the child formula a reference to the root formula
      */
-    public void setRoot(Formula root){
+    public void setRoot(Formula root, Set<Character> vars){
         this.root = root;
 
         if(inOrderSize == 0)
@@ -124,12 +123,10 @@ public class Formula extends FormulaEntity<Double> {
 
         for (int i = 0; i < inOrderSize; i++) {
             FormulaEntity<?> entity = inOrder[i];
-            if (entity instanceof Formula)
-                ((Formula)entity).setRoot(root);
+            if (entity instanceof NeedsRoot)
+                ((NeedsRoot)entity).setRoot(root, vars);
             else if (entity instanceof ReplaceableVariable)
-                root.setVariable(((ReplaceableVariable)entity).getValue(), 0);
-            else if (entity instanceof Function)
-                ((Function)entity).setRoot(root);
+                vars.add(((ReplaceableVariable)entity).getValue());
         }
     }
 
@@ -166,7 +163,7 @@ public class Formula extends FormulaEntity<Double> {
      * So, x+1+y*x, would be stored as {x, y}, meaning the first value in variables will be bound to x and the second to y<br/>
      * If more values are provided than those that are required, they'll just be ignored.
      */
-    public void setVariables(double... variables){
+    public Formula setVariables(double... variables){
         int size = getRequiredVariables();
         if(variables.length < size)
             throw new IllegalArgumentException("The number of variables must be the same as the number of variables in the formula");
@@ -176,29 +173,30 @@ public class Formula extends FormulaEntity<Double> {
         }
         addedVariables = true;
         resetCache();
+        return this;
     }
 
     /**
      * Attempts to set a value to a certain variable that is bound to the provided char c
      *
-     * @return The result from this operation, see {@link SetVariableStatus}
+     * @return The same object for easy access to chain other similar methods, or easy access to the result functions
      */
-    public SetVariableStatus setVariable(char c, double value) {
+    public Formula setVariable(char c, double value) {
         return setVariable(c, value, false);
     }
 
     /**
      * Attempts to set a value to a certain variable that is bound to the provided char c
      *
-     * @return The result from this operation, see {@link SetVariableStatus}
+     * @return The same object for easy access to chain other similar methods, or easy access to the result functions
      * @param log If true, it'll send log a message whether the character does not exist, or if the formula is ready to be used after this character has been added, or if it's still missing values
      */
-    public SetVariableStatus setVariable(char c, double value, boolean log){
+    public Formula setVariable(char c, double value, boolean log){
         Integer idx = variableIndex.get(c);
         if(idx == null){
             if(log)
                 System.out.println("Variables " + c + " does not exist in the formula");
-            return SetVariableStatus.DOES_NOT_EXIST;
+            return this;
         }
         variableValues[idx] = value;
         variableSet[idx] = true;
@@ -214,7 +212,7 @@ public class Formula extends FormulaEntity<Double> {
         }
 
         resetCache();
-        return valid ? SetVariableStatus.FORMULA_VALID : SetVariableStatus.FORMULA_INVALID;
+        return this;
     }
 
     private boolean isValid() {
@@ -337,7 +335,7 @@ public class Formula extends FormulaEntity<Double> {
     }
 
     private double processChar(FormulaEntity<?>[] list, int n, double result, boolean inOperationOrder) {
-        //Copied in default ^ implementation is changed to have 0 priority
+        //Copied in case the default ^ implementation is changed to have 0 priority
         boolean wasFormula = false;
         boolean innerNeg = false;
         boolean outerMinus = false;
