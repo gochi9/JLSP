@@ -26,6 +26,9 @@ public class ParsingState {
     TempList funVars = new TempList();
     FunctionCompute func = null;
     boolean isFunc = false;
+    FormulaEntity<?> lastEntityBeforeFunc = null;
+    Character lastOperationBeforeFunc;
+    int lastOperationPriorityBeforeFunc = 0;
 
     public ParsingState(Parser parser){finalFullReset(parser, true);}
 
@@ -54,6 +57,9 @@ public class ParsingState {
         funVars.clear();
         func = null;
         isFunc = false;
+        lastEntityBeforeFunc = null;
+        lastOperationBeforeFunc = null;
+        lastOperationPriorityBeforeFunc = 0;
 
         if(newMap)
            inOperationOrder = new TempMap(parser.opIndexMapSize);

@@ -580,23 +580,34 @@ public class Parser implements ParseCompute{
         Character last = null;
 
         char[] arr = formula.toCharArray();
-        for(char c : arr){
+        int length = arr.length;
+        for(int i = 0; i < length; i++){
+            char c = arr[i];
             if(skipEmptySpace && c == ' ')
                 continue;
 
-            if(currentState.funcString.length() == 0 && currentState.preFuncOp == null)
-                currentState.preFuncOp = isOperator(c) ? c : betweenVariables;
+            boolean wasEmpty = currentState.funcString.length() == 0;
 
             String funcString = currentState.funcString.toString();
-            if(!(functions.containsKey(funcString))){
-                boolean wasEmpty = currentState.funcString.length() == 0;
-                if(!funcNameSearcher.exists(funcString = currentState.funcString.append(c).toString())){
+            if (!(functions.containsKey(funcString))) {
+                if (!funcNameSearcher.exists(funcString = currentState.funcString.append(c).toString())) {
                     currentState.dump();
                     currentState.resetFunc();
+
+                    funcString = currentState.funcString.append(c).toString();
+                    if (!funcNameSearcher.exists(funcString)) {
+                        currentState.dump();
+                        currentState.resetFunc();
+                    }
+                    else
+                        addPreFuncInfo(currentState, i, arr);
                 }
-                else if(wasEmpty)
-                    currentState.dump();
+                else if (wasEmpty)
+                    addPreFuncInfo(currentState, i, arr);
             }
+            //Used for functions that are formed of only one character
+            else if(wasEmpty)
+                addPreFuncInfo(currentState, i, arr);
 
             if(c == '('){
                 char operator = last != null && last != '(' ? betweenVariables : defaultOperator;
@@ -617,10 +628,19 @@ public class Parser implements ParseCompute{
                     addStaticVariable(currentState, currentState.inOrder, currentState.inOperationOrder, true);
 
                 boolean isFunc = currentState.func != null;
+                FormulaEntity<?> lastValidEntity = currentState.lastEntityBeforeFunc;
+
+                if(isFunc)
+                    currentState.lastAddedEntity = lastValidEntity;
+
                 stateStack.push(currentState);
                 currentState = getState();
                 currentState.isFunc = isFunc;
                 currentState.parenthesesOperation = operator;
+
+                if(isFunc)
+                    currentState.lastAddedEntity = currentState.lastEntityBeforeFunc = lastValidEntity;
+
                 last = c;
                 continue;
             }
@@ -630,10 +650,7 @@ public class Parser implements ParseCompute{
                 if(stateStack.isEmpty())
                     throw new IllegalArgumentException("Unbalanced parenthesis");
 
-                if(currentState.isFunc)
-                    currentState.addFuncVariable(this);
-
-                currentState = addState(currentState, stateStack);
+                currentState = onParenthesisClose(currentState, stateStack);
                 continue;
             }
 
@@ -641,7 +658,7 @@ public class Parser implements ParseCompute{
         }
 
         while(!stateStack.isEmpty() && state != currentState)
-            currentState = addState(currentState, stateStack);
+            currentState =  onParenthesisClose(currentState, stateStack);
 
         return finishFormula(state, null);
     }
@@ -664,12 +681,16 @@ public class Parser implements ParseCompute{
 
         if(currentState.func == null)
             toAdd = finishFormula(st, op);
-        else
+        else{
             toAdd = new Function(currentState.funcString.toString(), st.funVars.getArray(), st.funVars.size(), op);
+            currentState.lastOperationPriority = currentState.lastOperationPriorityBeforeFunc;
+            currentState.lastOperation = currentState.lastOperationBeforeFunc;
+        }
 
         currentState.inOrder.add(toAdd);
         resolveAddition(currentState, st.parenthesesOperation, toAdd, currentState.inOperationOrder);
         currentState.reset();
+        currentState.resetFunc();
         recycleState(st, this);
         return currentState;
     }
@@ -697,6 +718,7 @@ public class Parser implements ParseCompute{
             return new Formula(c, inOrder.getArray(), inOrderSize, inOperationOrderList.getArray(), inOperationOrderSize, lowest.getArray(), lowest.size(), this);
         else
             return new Formula(inOrder.getArray(), inOrderSize, inOperationOrderList.getArray(), inOperationOrderSize, lowest.getArray(), lowest.size(), this);
+
     }
 
     /**
@@ -858,7 +880,7 @@ public class Parser implements ParseCompute{
 
         TempList list = inOperationOrder.getOrAdd(getIndexByPriority(state.lastOperationPriority));
 
-        if(!list.isEmpty())
+        if(!list.isEmpty() && !(entity instanceof Function))
             list.removeLast();
 
         if(!list.isEmpty() && state.lastOperationPriority > 0)
@@ -867,6 +889,7 @@ public class Parser implements ParseCompute{
         state.lastOperationPriority = prio;
         state.lastOperation = operation;
         list = inOperationOrder.getOrAdd(getIndexByPriority(state.lastOperationPriority));
+
         if(state.lastAddedEntity != null)
             list.add(state.lastAddedEntity);
 
@@ -885,11 +908,10 @@ public class Parser implements ParseCompute{
         if(op != 0 || operation != '^' || lastOperation != '^')
             return;
 
-        TempList list = inOperationOrder.sureGet(getIndexByPriority(prio));
+        TempList list = inOperationOrder.getOrAdd(getIndexByPriority(prio));
 
         if(list.size() < 3)
             return;
-
 
         TempList newList = new TempList(2);
         FormulaEntity<?> e1 = list.getAndRemoveLast(), e2 = list.getAndRemoveLast();
@@ -1255,6 +1277,27 @@ public class Parser implements ParseCompute{
     private void checkFreeDelim(char c) {
         checkTaken(opPresent, c, "operators");
         checkTaken(commas, c, "commas");
+    }
+
+    private void addPreFuncInfo(ParsingState currentState, int index, char[] arr){
+        currentState.dump();
+        currentState.lastEntityBeforeFunc = currentState.lastAddedEntity;
+        currentState.lastOperationBeforeFunc = currentState.lastOperation;
+        currentState.lastOperationPriorityBeforeFunc = currentState.lastOperationPriority;
+
+
+        if(index > 0 && isOperator(arr[index - 1]))
+            currentState.preFuncOp = arr[index - 1];
+        else
+            currentState.preFuncOp = betweenVariables;
+    }
+
+    //Called when a parenthesis is closed to process the parcess information for the mini-formula or function, or gets called at the end of the parsing loop and there are unclosed states
+    private ParsingState onParenthesisClose(ParsingState currentState, Deque<ParsingState> stateStack){
+        if(currentState.isFunc)
+            currentState.addFuncVariable(this);
+
+        return addState(currentState, stateStack);
     }
 
     private static byte fromChar(char c) {

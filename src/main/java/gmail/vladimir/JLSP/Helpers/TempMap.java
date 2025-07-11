@@ -33,36 +33,33 @@ public class TempMap {
         return d;
     }
 
-    public TempList put(int key, TempList list) {
-        tempIndexes[tempIndex++] = key;
-        existsTemp[key] = true;
+    public void put(int key, TempList list) {
         size++;
         data[key] = list;
-        return list;
-    }
-
-    public TempList sureGet(int key){
-        return data[key];
     }
 
     public TempList getOrAdd(int key) {
-        if (key < data.length && data[key] != null) {
-            if (!existsTemp[key]) {
-                tempIndexes[tempIndex++] = key;
-                existsTemp[key] = true;
-            }
+        if(key >= data.length)
+            throw new ArrayIndexOutOfBoundsException("Key " + key + " is out of bounds for size " + data.length);
 
-            return data[key];
+        if (!existsTemp[key]) {
+            tempIndexes[tempIndex++] = key;
+            existsTemp[key] = true;
         }
 
-        return put(key, new TempList());
+        if (data[key] == null)
+            put(key, new TempList());
+
+        return data[key];
     }
 
     public void clear() {
         int size = data.length;
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < size; i++){
             data[i] = null;
-        tempIndex = 0;
+            existsTemp[i] = false;
+        }
+        this.tempIndex = 0;
         this.size = 0;
     }
 
@@ -72,6 +69,11 @@ public class TempMap {
             if (clearTemp) list.clearTemp();
             else list.removeTemp();
         }
+
+        int size = data.length;
+        for (int i = 0; i < size; i++)
+            existsTemp[i] = false;
+
         tempIndex = 0;
     }
 
