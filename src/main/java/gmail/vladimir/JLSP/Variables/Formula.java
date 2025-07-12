@@ -140,7 +140,7 @@ public class Formula extends FormulaEntity<Double> implements NeedsRoot {
     /**
      * Prints a list of the replaceable variables. Shows both values that are empty and filled
      */
-    public String getVariables(){
+    public String getVariablesString(){
         StringJoiner joiner = new StringJoiner(", ");
         for (int i = 0; i < variableNames.length; i++)
             joiner.add(variableNames[i] + "=" + variableValues[i]);
@@ -149,6 +149,14 @@ public class Formula extends FormulaEntity<Double> implements NeedsRoot {
 
     public FormulaEntity<?>[] getInOrder() {
         return inOrder;
+    }
+
+    public Set<Character> getVariables(){
+        int size = variableNames.length;
+        Set<Character> vars = new LinkedHashSet<>(size + 4, 1f);
+        for (int i = 0; i < variableNames.length; i++)
+            vars.add(variableNames[i]);
+        return vars;
     }
 
     /**
