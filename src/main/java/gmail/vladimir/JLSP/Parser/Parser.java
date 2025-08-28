@@ -541,10 +541,17 @@ public class Parser implements ParseCompute{
     }
 
     /**
-     * see {@link Parser#parseFormula(String, boolean)}
+     * see {@link Parser#parseFormula(String, boolean, boolean)}
      */
     public Formula parse(String formula){
-        return parseFormula(formula, false);
+        return parseFormula(formula, false, true);
+    }
+
+    /**
+     * see {@link Parser#parseFormula(String, boolean, boolean)}
+     */
+    public Formula parseNoFunctions(String formula){
+        return parseFormula(formula, false, false);
     }
 
     /**
@@ -561,9 +568,10 @@ public class Parser implements ParseCompute{
      *
      * @param formula The string that's going to be parsed
      * @param acceptNull If the returned value can be null, if false, an empty Formula object will be provided. The default implementation never returns null, only if the parse logic has been replaced using {@link Parser#setParseLogic(ParseCompute)}
+     * @param hasFunctions Whether you expect the formula to contain functions. This will optimize performance if no functions are present
      * @return A Formula entity or null.
      */
-    public Formula parseFormula(String formula, boolean acceptNull) {
+    public Formula parseFormula(String formula, boolean acceptNull, boolean hasFunctions) {
         if(parseLogic != null) {
             Formula result = parseLogic.parse(formula);
             return acceptNull || result != null ? result : new Formula(new FormulaEntity[0], 0, new FormulaEntity[0], 0, new FormulaEntity[0], 0, new LinkedHashMap<>(), this);
@@ -576,6 +584,7 @@ public class Parser implements ParseCompute{
         ParsingState currentState = state;
 
         Deque<ParsingState> stateStack = new ArrayDeque<>();
+        String funcString = "";
 
         Character last = null;
 
@@ -586,33 +595,37 @@ public class Parser implements ParseCompute{
             if(skipEmptySpace && c == ' ')
                 continue;
 
-            boolean wasEmpty = currentState.funcString.length() == 0;
+            if(!hasFunctions)
+                currentState.dump();
+            else{
+                boolean wasEmpty = currentState.funcString.length() == 0;
 
-            String funcString = currentState.funcString.toString();
-            if (!(functions.containsKey(funcString))) {
-                if (!funcNameSearcher.exists(funcString = currentState.funcString.append(c).toString())) {
-                    currentState.dump();
-                    currentState.resetFunc();
-
-                    funcString = currentState.funcString.append(c).toString();
-                    if (!funcNameSearcher.exists(funcString)) {
+                funcString = currentState.funcString.toString();
+                if (!(functions.containsKey(funcString))) {
+                    if (!funcNameSearcher.exists(funcString = currentState.funcString.append(c).toString())) {
                         currentState.dump();
                         currentState.resetFunc();
+
+                        funcString = currentState.funcString.append(c).toString();
+                        if (!funcNameSearcher.exists(funcString)) {
+                            currentState.dump();
+                            currentState.resetFunc();
+                        }
+                        else
+                            addPreFuncInfo(currentState, i, arr);
                     }
-                    else
+                    else if (wasEmpty)
                         addPreFuncInfo(currentState, i, arr);
                 }
-                else if (wasEmpty)
+                //Used for functions that are formed of only one character
+                else if(wasEmpty)
                     addPreFuncInfo(currentState, i, arr);
             }
-            //Used for functions that are formed of only one character
-            else if(wasEmpty)
-                addPreFuncInfo(currentState, i, arr);
 
             if(c == '('){
                 char operator = last != null && last != '(' ? betweenVariables : defaultOperator;
 
-                if((currentState.func = functions.get(funcString)) == null){
+                if(!hasFunctions || (currentState.func = functions.get(funcString)) == null){
                     currentState.dump();
                     currentState.resetFunc();
 

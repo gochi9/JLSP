@@ -237,17 +237,24 @@ public class ParserStatic {
     }
 
     /**
-     * See {@link Parser#parse(String)} 
+     * See {@link Parser#parse(String)}
      */
     public static Formula parse(String formula){
         return INSTANCE.parse(formula);
     }
 
     /**
-     * See {@link Parser#parseFormula(String, boolean)} 
+     * See {@link Parser#parseNoFunctions(String)}
      */
-    public static Formula parseFormula(String formula, boolean acceptNull) {
-        return INSTANCE.parseFormula(formula, acceptNull);
+    public static Formula parseNoFunctions(String formula){
+        return INSTANCE.parseNoFunctions(formula);
+    }
+
+    /**
+     * See {@link Parser#parseFormula(String, boolean, boolean)}
+     */
+    public static Formula parseFormula(String formula, boolean acceptNull, boolean hasFunctions) {
+        return INSTANCE.parseFormula(formula, acceptNull, hasFunctions);
     }
 
 }
